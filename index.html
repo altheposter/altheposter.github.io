@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SA Avatar Lookup</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f4; }
+    input, button { padding: 10px; font-size: 16px; }
+      #results img { margin: 10px; border: 2px solid #333; max-width: 150px; }
+      </style>
+      </head>
+      <body>
+
+      <h2>Something Awful Avatar Lookup</h2>
+
+      <p>Enter SA username:</p>
+      <input id="username" placeholder="e.g. Lowtax">
+      <button onclick="lookup()">Lookup</button>
+
+      <h3>Results</h3>
+      <div id="status"></div>
+      <div id="results"></div>
+
+      <script>
+      async function lookup() {
+        const user = document.getElementById("username").value.trim();
+          const status = document.getElementById("status");
+            const results = document.getElementById("results");
+              results.innerHTML = "";
+                status.innerHTML = "Resolving user ID…";
+
+                  try {
+                      const userid = await getUserId(user);
+                          status.innerHTML = "User ID: " + userid + "<br>Fetching avatar folder…";
+
+                              const folder = await getAvatarFolder(userid);
+                                  if (!folder) {
+                                        status.innerHTML = "Could not find avatar folder.";
+                                              return;
+                                                  }
+
+                                                      status.innerHTML = "Avatar folder: " + folder + "<br>Enumerating avatars…";
+
+                                                          const avatars = await listAvatars(folder);
+                                                              if (avatars.length === 0) {
+                                                                    status.innerHTML = "No avatars found.";
+                                                                          return;
+                                                                              }
+
+                                                                                  status.innerHTML = "Found " + avatars.length + " avatars:";
+                                                                                      avatars.forEach(url => {
+                                                                                            const img = document.createElement("img");
+                                                                                                  img.src = url;
+                                                                                                        results.appendChild(img);
+                                                                                                            });
+
+                                                                                                              } catch (err) {
+                                                                                                                  status.innerHTML = "Error: " + err;
+                                                                                                                    }
+                                                                                                                    }
+
+                                                                                                                    async function getUserId(username) {
+                                                                                                                      const res = await fetch(
+                                                                                                                          `https://forums.somethingawful.com/member.php?action=getinfo&username=${encodeURIComponent(username)}`,
+                                                                                                                              { redirect: "manual" }
+                                                                                                                                );
+
+                                                                                                                                  const loc = res.headers.get("location");
+                                                                                                                                    if (!loc) throw "Could not resolve username.";
+
+                                                                                                                                      const match = loc.match(/userid=(\d+)/);
+                                                                                                                                        if (!match) throw "User ID not found.";
+
+                                                                                                                                          return match[1];
+                                                                                                                                          }
+
+                                                                                                                                          async function getAvatarFolder(userid) {
+                                                                                                                                            const html = await fetch(
+                                                                                                                                                `https://forums.somethingawful.com/member.php?action=getinfo&userid=${userid}`
+                                                                                                                                                  ).then(r => r.text());
+
+                                                                                                                                                    const match = html.match(/avpath:\s*"?([^"\s]+)"?/);
+                                                                                                                                                      return match ? match[1] : null;
+                                                                                                                                                      }
+
+                                                                                                                                                      async function listAvatars(folder) {
+                                                                                                                                                        const base = `https://fi.somethingawful.com/safs/titles/${folder}/`;
+                                                                                                                                                          const results = [];
+
+                                                                                                                                                            // SA avatars typically use 0000.png → 0199.png range
+                                                                                                                                                              for (let i = 0; i < 200; i++) {
+                                                                                                                                                                  const file = i.toString().padStart(4, "0");
+                                                                                                                                                                      const url = `${base}${file}.png`;
+
+                                                                                                                                                                          const res = await fetch(url);
+                                                                                                                                                                              if (res.ok) results.push(url);
+                                                                                                                                                                                }
+
+                                                                                                                                                                                  return results;
+                                                                                                                                                                                  }
+                                                                                                                                                                                  </script>
+
+                                                                                                                                                                                  </body>
+                                                                                                                                                                                  </html>
